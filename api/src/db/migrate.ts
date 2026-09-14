@@ -18,7 +18,7 @@ const pool = new Pool({
 const db = drizzle(pool);
 
 async function runMigrate() {
-  console.log("⏳ Aplicando migrations no banco de dados...");
+  console.log("Aplicando migrations no banco de dados...");
 
   try {
     await migrate(db, { migrationsFolder: "./src/db/migrations" });

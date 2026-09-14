@@ -12,6 +12,7 @@ import {
 import { env } from "./env";
 import { openApiDocumentation } from "./docs/into.docs";
 import { createAppointment } from "./routes/create-appointment";
+import { getAppointments } from "./routes/get-appointments";
 
 const app = Fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -32,6 +33,7 @@ app.register(scalarApiReference, {
   routePrefix: "/docs",
 });
 
+app.register(getAppointments);
 app.register(createAppointment);
 
 app.listen({ port: env.PORT, host: "0.0.0.0" }).then(() => {
