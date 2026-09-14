@@ -1,0 +1,40 @@
+import Fastify from "fastify";
+import cors from "@fastify/cors";
+import swagger from "@fastify/swagger";
+import scalarApiReference from "@scalar/fastify-api-reference";
+
+import {
+  serializerCompiler,
+  validatorCompiler,
+  jsonSchemaTransform,
+  type ZodTypeProvider,
+} from "fastify-type-provider-zod";
+import { env } from "./env";
+import { openApiDocumentation } from "./docs/into.docs";
+import { createAppointment } from "./routes/create-appointment";
+
+const app = Fastify().withTypeProvider<ZodTypeProvider>();
+
+app.setValidatorCompiler(validatorCompiler);
+app.setSerializerCompiler(serializerCompiler);
+
+app.register(cors, {
+  origin: true,
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+});
+
+app.register(swagger, {
+  ...openApiDocumentation,
+  transform: jsonSchemaTransform,
+});
+
+app.register(scalarApiReference, {
+  routePrefix: "/docs",
+});
+
+app.register(createAppointment);
+
+app.listen({ port: env.PORT, host: "0.0.0.0" }).then(() => {
+  console.log("HTTP server running on http://localhost:3333");
+  console.log("DOCS available at http://localhost:3333/docs");
+});
