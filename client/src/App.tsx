@@ -1,5 +1,6 @@
 import { Router } from "./routes/route";
-import './style/index.css'
+import './styles/index.css'
+import './styles/calendar.css'
 
 function App() {
   return (

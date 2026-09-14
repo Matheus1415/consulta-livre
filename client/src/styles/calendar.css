@@ -1,0 +1,245 @@
+:root {
+  /* Variáveis de cores baseadas no seu sistema */
+  --fc-button-bg: var(--color-card-surface, #1f2023);
+  --fc-button-active: var(--color-neutral-950, #0a0a0a);
+  --fc-border: var(--color-neutral-800, #262626);
+  --fc-accent: #9a67ff;
+  --fc-text-main: #d4d4e1;
+  --fc-text-muted: #9ca3af;
+}
+
+/* --- 1. ESTRUTURA GLOBAL DA GRADE --- */
+.fc-theme-standard .fc-scrollgrid,
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border-color: var(--fc-border) !important;
+}
+
+.fc-scrollgrid {
+  border: none !important;
+}
+.fc-scroller {
+  border: none !important;
+}
+
+/* --- 2. HEADER E BOTÕES (UI) --- */
+.fc .fc-header-toolbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: 1rem;
+  margin-bottom: 1rem !important;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--fc-text-main);
+  text-transform: capitalize;
+}
+
+.fc .fc-button-group {
+  background-color: var(--fc-button-bg);
+  padding: 2px;
+  border-radius: 0.5rem;
+  gap: 2px;
+}
+
+.fc .fc-button-primary {
+  background: transparent !important;
+  border: none !important;
+  color: var(--fc-text-muted) !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  border-radius: 0.375rem !important;
+  transition: all 0.15s ease;
+  box-shadow: none !important;
+}
+
+.fc .fc-button-primary.fc-button-active {
+  background-color: var(--fc-button-active) !important;
+  color: var(--fc-accent) !important;
+}
+
+/* --- 3. ESTRUTURA BASE DOS EVENTOS (CHIPS) --- */
+.fc-event,
+.fc-daygrid-event,
+.fc-timegrid-event {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 1px 4px !important;
+  cursor: pointer;
+  display: flex !important; /* Garante que eventos com hora ocupem o espaço todo */
+}
+
+/* Seletor unificado para o visual de "Chip" */
+/* Aplica ao container interno (allDay) OU ao link principal (com hora) */
+.fc-event.fc-daygrid-event .fc-event-main,
+.fc-event.fc-daygrid-dot-event {
+  padding: 4px 10px !important;
+  border-radius: 6px !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  display: flex !important;
+  align-items: center !important;
+  transition: all 0.2s ease !important;
+  min-height: 24px;
+  width: 100%;
+}
+
+/* Esconder a bolinha padrão e o horário para manter o visual limpo de chip */
+.fc-daygrid-event-dot,
+.fc-event-time {
+  display: none !important;
+}
+
+/* --- 4. CORES POR CATEGORIA (LÓGICA UNIVERSAL) --- */
+/* Consulta (Índigo / Azul) */
+.fc-bg-consulta .fc-event-main,
+.fc-bg-consulta.fc-daygrid-dot-event {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  border-left: 3px solid #6366f1 !important;
+  color: #818cf8 !important;
+}
+
+/* Feriados (Verde) */
+.fc-bg-feriados .fc-event-main,
+.fc-bg-feriados.fc-daygrid-dot-event {
+  background-color: rgba(5, 150, 105, 0.15) !important;
+  border-left: 3px solid #059669 !important;
+  color: #34d399 !important;
+}
+
+/* Horário Bloqueado (Rosa / Vermelho) */
+.fc-bg-bloqueio .fc-event-main,
+.fc-bg-bloqueio.fc-daygrid-dot-event {
+  background-color: rgba(244, 63, 94, 0.15) !important;
+  border-left: 3px solid #f43f5e !important;
+  color: #fb7185 !important;
+}
+
+/* Outros (Cinza / Neutro) */
+.fc-bg-outros .fc-event-main,
+.fc-bg-outros.fc-daygrid-dot-event {
+  background-color: rgba(148, 163, 184, 0.15) !important;
+  border-left: 3px solid #94a3b8 !important;
+  color: #cbd5e1 !important;
+}
+
+/* --- 5. INTERAÇÃO E HOVER --- */
+.fc-event:hover .fc-event-main,
+.fc-event.fc-daygrid-dot-event:hover {
+  filter: brightness(1.2) !important;
+  transform: translateY(-1px) !important;
+  z-index: 50;
+}
+
+.fc .fc-daygrid-day.fc-day-today {
+  background-color: rgba(154, 103, 255, 0.05) !important;
+}
+
+/* --- ESTILIZAÇÃO DO POPOVER (MAIS EVENTOS) --- */
+
+.fc-popover {
+  background-color: #1a1b1e !important;
+  border: 1px solid var(--fc-border) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.fc-popover-header {
+  background-color: #1a1b1e !important;
+  padding: 12px !important;
+  border-bottom: 1px solid var(--fc-border) !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fc-popover-title {
+  color: var(--fc-text-main) !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  text-transform: capitalize;
+}
+
+.fc-popover-close {
+  color: var(--fc-text-muted) !important;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  cursor: pointer;
+}
+
+.fc-popover-close:hover {
+  opacity: 1;
+}
+
+.fc-popover-body {
+  background-color: #141517 !important;
+  padding: 8px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 6px !important;
+}
+
+.fc-popover-body .fc-daygrid-event-harness {
+  margin: 0 !important;
+}
+
+.fc-popover-body .fc-event {
+  margin: 0 !important;
+  display: block !important;
+}
+
+.fc-popover-body .fc-event-main {
+  min-height: 28px !important;
+}
+
+/* Container do scroll */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 10px; 
+}
+
+/* Fundo da trilha (Track) */
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* A barra que desliza (Thumb) */
+::-webkit-scrollbar-thumb {
+  background: #262626; 
+  border-radius: 10px; 
+  border: 2px solid #0a0a0a; 
+}
+
+/* Efeito ao passar o mouse */
+::-webkit-scrollbar-thumb:hover {
+  background: #404040;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+/* Remove o fundo marrom/amarelo da coluna */
+.fc-day-today,
+[class*="today"],
+[class*="selected-day"] {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Ajusta as bordas para manter a separação neutra */
+td,
+th {
+  border-color: #262626 !important;
+}
+
+/* Garante que o texto dentro da área continue visível */
+.text-neutral-400 {
+  color: #a3a3a3 !important;
+}
