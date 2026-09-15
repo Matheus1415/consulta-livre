@@ -2,7 +2,7 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { appointments } from "@/db/schema";
 import { db } from "@/db";
-import { and, gt, lt } from "drizzle-orm";
+import { and, eq, gt, gte, lt, lte } from "drizzle-orm";
 
 export const createAppointment: FastifyPluginAsyncZod = async (app) => {
   app.post(
@@ -17,8 +17,12 @@ export const createAppointment: FastifyPluginAsyncZod = async (app) => {
           patientName: z.string().optional().nullable(),
           patientPhone: z.string().optional().nullable(),
           blockReason: z.string().optional().nullable(),
-          start: z.string().datetime({ message: "A data inicial deve estar no formato ISO 8601 válido" }),
-          end: z.string().datetime({ message: "A data final deve estar no formato ISO 8601 válido" }),
+          start: z.string().datetime({
+            message: "A data inicial deve estar no formato ISO 8601 válido",
+          }),
+          end: z.string().datetime({
+            message: "A data final deve estar no formato ISO 8601 válido",
+          }),
         }),
         response: {
           201: z.object({
@@ -40,7 +44,15 @@ export const createAppointment: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (request, reply) => {
-      const { title, calendar, patientName, patientPhone, blockReason, start, end } = request.body;
+      const {
+        title,
+        calendar,
+        patientName,
+        patientPhone,
+        blockReason,
+        start,
+        end,
+      } = request.body;
 
       const startDate = new Date(start);
       const endDate = new Date(end);
@@ -51,6 +63,48 @@ export const createAppointment: FastifyPluginAsyncZod = async (app) => {
           status: "error",
           message: "A data inicial deve ser anterior à data final.",
         });
+      }
+
+      // Validação de Feriados
+      if (calendar !== "Feriados") {
+        const dayStart = new Date(
+          startDate.getFullYear(),
+          startDate.getMonth(),
+          startDate.getDate(),
+          0,
+          0,
+          0,
+          0,
+        );
+
+        const dayEnd = new Date(
+          startDate.getFullYear(),
+          startDate.getMonth(),
+          startDate.getDate(),
+          23,
+          59,
+          59,
+          999,
+        );
+
+        const [holiday] = await db
+          .select({ title: appointments.title })
+          .from(appointments)
+          .where(
+            and(
+              eq(appointments.calendar, "Feriados"),
+              gte(appointments.start, dayStart),
+              lte(appointments.start, dayEnd),
+            ),
+          )
+          .limit(1);
+
+        if (holiday) {
+          return reply.status(400).send({
+            status: "error",
+            message: `Não é possível agendar nesta data pois é feriado (${holiday.title}).`,
+          });
+        }
       }
 
       // Validação de Horário Comercial (08:00 e 18:00)
@@ -73,10 +127,7 @@ export const createAppointment: FastifyPluginAsyncZod = async (app) => {
         .select({ id: appointments.id })
         .from(appointments)
         .where(
-          and(
-            lt(appointments.start, endDate),
-            gt(appointments.end, startDate)
-          )
+          and(lt(appointments.start, endDate), gt(appointments.end, startDate)),
         )
         .limit(1);
 
@@ -107,6 +158,6 @@ export const createAppointment: FastifyPluginAsyncZod = async (app) => {
           id: result[0].id,
         },
       });
-    }
+    },
   );
 };

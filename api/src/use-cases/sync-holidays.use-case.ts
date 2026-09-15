@@ -10,7 +10,7 @@ export interface SyncHolidaysResponse {
 }
 
 export async function syncHolidaysUseCase(
-  year: number,
+  year: number
 ): Promise<SyncHolidaysResponse> {
   const holidays = await NagerDateProvider.getPublicHolidays(year, "BR");
 
@@ -18,17 +18,24 @@ export async function syncHolidaysUseCase(
   let totalSkipped = 0;
 
   for (const holiday of holidays) {
-    const start = new Date(`${holiday.date}T00:00:00.000Z`);
-    const end = new Date(`${holiday.date}T23:59:59.999Z`);
+    // Separa ano, mês e dia para construir a data no horário local (evita timezone shift UTC-3)
+    const [yearStr, monthStr, dayStr] = holiday.date.split("-");
+    const yearNum = Number(yearStr);
+    const monthNum = Number(monthStr) - 1;
+    const dayNum = Number(dayStr);
 
+    const start = new Date(yearNum, monthNum, dayNum, 0, 0, 0, 0);
+    const end = new Date(yearNum, monthNum, dayNum, 23, 59, 59, 999);
+
+    // Checa se o feriado já existe no banco para evitar duplicatas
     const [existingHoliday] = await db
       .select()
       .from(appointments)
       .where(
         and(
           eq(appointments.calendar, "Feriados"),
-          eq(appointments.start, start),
-        ),
+          eq(appointments.start, start)
+        )
       )
       .limit(1);
 
