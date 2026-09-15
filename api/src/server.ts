@@ -38,11 +38,11 @@ app.register(scalarApiReference, {
 });
 
 app.register(getAppointments);
+app.register(getAvailableSlots);
 app.register(createAppointment);
+app.register(syncHolidays);
 app.register(updateAppointment);
 app.register(deleteAppointment);
-app.register(getAvailableSlots);
-app.register(syncHolidays);
 
 app.listen({ port: env.PORT, host: "0.0.0.0" }).then(() => {
   console.log("HTTP server running on http://localhost:3333");

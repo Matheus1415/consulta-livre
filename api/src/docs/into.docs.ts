@@ -4,70 +4,60 @@ export const openApiDocumentation: FastifySwaggerOptions = {
   openapi: {
     openapi: "3.0.3",
     info: {
-      title: "Clínica API & Agendamentos e Gestão",
+      title: "Clínica API - Agendamentos & Gestão de Agenda",
       version: "1.0.0",
       description: `
-API REST para gerenciamento da agenda da clínica, consultas, pacientes, feriados e bloqueios de horário.
-
-Esta API permite:
-
-- 📅 Criar, atualizar e listar agendamentos (Consultas, Feriados, Bloqueios e Outros)
-- 👤 Gerenciar informações de pacientes e telefones
-- 🕒 Controle de horários com suporte a timezone e dias inteiros
-- 📄 Paginação e ordenação cronológica baseada em UUID v7
+API RESTful desenvolvida para o gerenciamento completo da agenda de uma clínica médica, abrangendo consultas, bloqueios operacionais e integração com feriados nacionais.
 
 ---
 
-## 🌍 Base URL
+## 📌 Regras de Negócio & Especificações do Desafio
 
-\`\`\`
-http://localhost:3333
-\`\`\`
+### 1. Janela de Horário Comercial
+- Os agendamentos são permitidos **estritamente entre 08:00 e 18:00**.
+- A grade de atendimento trabalha com slots padronizados de **1 hora** de duração.
+- Tentativas de agendamento fora do horário comercial retornam erro de validação (\`400 Bad Request\`).
 
----
+### 2. Integração com Feriados Nacionais (Nager.Date API)
+- A API integra-se com a **[Nager.Date Public Holidays API](https://date.nager.at/api/v3/PublicHolidays/{year}/BR)**.
+- Feriados nacionais são sincronizados e registrados com a categoria \`Feriados\`, bloqueando o dia por completo.
+- É impossível cadastrar qualquer tipo de agendamento ou consulta em datas classificadas como feriado (retornando a indicação do feriado no erro \`400 Bad Request\`).
 
-## 📦 Paginação e Filtros
+### 3. Validação de Conflitos / Sobreposição
+- O sistema executa checagem de sobreposição de horários no banco de dados.
+- Não é permitido criar dois agendamentos que ocupem o mesmo intervalo de tempo (retornando erro \`409 Conflict\`).
 
-A listagem de agendamentos suporta filtros por categoria e intervalo de datas.
-
----
-
-## 📄 Formato de Resposta
-
-Todas as respostas são retornadas em **JSON**.
-
-Datas são retornadas no padrão **ISO 8601 (UTC)**.
-
----
-
-## 🚨 Status Codes
-
-- **200** — Requisição bem-sucedida  
-- **201** — Recurso criado com sucesso  
-- **400** — Erro de validação  
-- **404** — Recurso não encontrado  
-- **500** — Erro interno do servidor  
+### 4. Consulta de Horários Disponíveis
+- O endpoint \`GET /appointments/available-slots\` retorna dinamicamente as janelas livres/ocupadas do dia e indica se a data consultada é um feriado.
 
 ---
 
-## 🔐 Autenticação
+## 🛠️ Tech Stack & Arquitetura
+- **Runtime / Framework:** Node.js, Fastify (com Fastify Type Provider Zod)
+- **Validação & Schemas:** Zod
+- **ORM & Banco de Dados:** Drizzle ORM + PostgreSQL
+- **Integrações Externas:** Nager.Date API v3
 
-Atualmente esta API gerencia o acesso de forma interna/protegida.
+---
+
+## 🚨 Tabela de Status Codes
+
+| Código | Descrição |
+|---|---|
+| **200 OK** | Consulta executada com sucesso |
+| **201 Created** | Agendamento ou recurso criado com sucesso |
+| **400 Bad Request** | Dados inválidos, fora do horário comercial (08h-18h) ou dia de feriado |
+| **409 Conflict** | Choque/Sobreposição com outro agendamento existente |
+| **500 Internal Error** | Falha interna no servidor ou na integração |
 
 ---
 
-## 👨‍💻 Sobre o Autor
+## 👨‍💻 Autor
 
-Este projeto foi desenvolvido por **Matheus Pereira da Silva**.
+Desenvolvido por **Matheus Pereira da Silva**
 
-- 🧠 Foco em Backend & Arquitetura
-- ⚡ Node.js, Fastify, PostgreSQL, Drizzle ORM
-- 📦 APIs REST modernas e escaláveis
-
-🔗 GitHub: https://github.com/Matheus1415  
-🔗 LinkedIn: https://www.linkedin.com/in/matheus-pereira-da-silva-298020286/
-
----
+- 🔗 **GitHub:** [Matheus1415](https://github.com/Matheus1415)
+- 🔗 **LinkedIn:** [Matheus Pereira da Silva](https://www.linkedin.com/in/matheus-pereira-da-silva-298020286/)
 `,
       contact: {
         name: "Matheus Pereira da Silva",
@@ -82,22 +72,22 @@ Este projeto foi desenvolvido por **Matheus Pereira da Silva**.
     servers: [
       {
         url: "http://localhost:3333",
-        description: "Local development",
-      },
-      {
-        url: "https://api.seudominio.com",
-        description: "Production",
+        description: "Servidor de Desenvolvimento Local",
       },
     ],
 
     tags: [
       {
         name: "Appointments",
-        description: "Operations related to medical appointments, holidays, and schedule blocks",
+        description: "Operações de criação, listagem, remoção e checagem de disponibilidade de horários",
+      },
+      {
+        name: "Holidays",
+        description: "Endpoints de sincronização com a API pública de feriados (Nager.Date)",
       },
       {
         name: "Health",
-        description: "Application health check endpoints",
+        description: "Verificação da saúde e disponibilidade da aplicação",
       },
     ],
   },
