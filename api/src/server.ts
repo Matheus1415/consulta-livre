@@ -16,6 +16,7 @@ import { getAppointments } from "./routes/get-appointments";
 import { updateAppointment } from "./routes/update-appointment";
 import { deleteAppointment } from "./routes/delete-appointment";
 import { getAvailableSlots } from "./routes/available-appointment";
+import { syncHolidays } from "./routes/sync-holidays";
 
 const app = Fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -41,6 +42,7 @@ app.register(createAppointment);
 app.register(updateAppointment);
 app.register(deleteAppointment);
 app.register(getAvailableSlots);
+app.register(syncHolidays);
 
 app.listen({ port: env.PORT, host: "0.0.0.0" }).then(() => {
   console.log("HTTP server running on http://localhost:3333");
