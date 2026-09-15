@@ -3,6 +3,7 @@ import { z } from "zod";
 import { appointments } from "@/db/schema";
 import { db } from "@/db";
 import { and, eq, gt, gte, lt, lte } from "drizzle-orm";
+import { AppointmentValidationService } from "@/services/appointmentValidation.service";
 
 export const createAppointment: FastifyPluginAsyncZod = async (app) => {
   app.post(
@@ -57,38 +58,14 @@ export const createAppointment: FastifyPluginAsyncZod = async (app) => {
       const startDate = new Date(start);
       const endDate = new Date(end);
 
-      // Validação de consistência básica
-      if (startDate >= endDate) {
-        return reply.status(400).send({
-          status: "error",
-          message: "A data inicial deve ser anterior à data final.",
-        });
-      }
-
-      // Validação de Feriados
+      // Validações de Regra de Negócio via Service
       if (calendar !== "Feriados") {
-        const dayStart = new Date(
-          startDate.getFullYear(),
-          startDate.getMonth(),
-          startDate.getDate(),
-          0,
-          0,
-          0,
-          0,
-        );
+        // Busca feriados no banco para a data selecionada
+        const dayStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0, 0);
+        const dayEnd = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 23, 59, 59, 999);
 
-        const dayEnd = new Date(
-          startDate.getFullYear(),
-          startDate.getMonth(),
-          startDate.getDate(),
-          23,
-          59,
-          59,
-          999,
-        );
-
-        const [holiday] = await db
-          .select({ title: appointments.title })
+        const dbHolidays = await db
+          .select({ start: appointments.start })
           .from(appointments)
           .where(
             and(
@@ -96,33 +73,22 @@ export const createAppointment: FastifyPluginAsyncZod = async (app) => {
               gte(appointments.start, dayStart),
               lte(appointments.start, dayEnd),
             ),
-          )
-          .limit(1);
+          );
 
-        if (holiday) {
+        const holidayDates = dbHolidays.map((h) => new Date(h.start));
+
+        // Centraliza a validação (Fim de semana, Horário Comercial, Feriado e Cronologia)
+        const validation = AppointmentValidationService.validate(startDate, endDate, holidayDates);
+
+        if (!validation.isValid) {
           return reply.status(400).send({
             status: "error",
-            message: `Não é possível agendar nesta data pois é feriado (${holiday.title}).`,
+            message: validation.error!,
           });
         }
       }
 
-      // Validação de Horário Comercial (08:00 e 18:00)
-      const startHour = startDate.getHours();
-      const endHour = endDate.getHours();
-      const endMinutes = endDate.getMinutes();
-
-      const isStartValid = startHour >= 8 && startHour < 18;
-      const isEndValid = endHour < 18 || (endHour === 18 && endMinutes === 0);
-
-      if (!isStartValid || !isEndValid) {
-        return reply.status(400).send({
-          status: "error",
-          message: "Agendamentos só podem ser realizados entre 08:00 e 18:00.",
-        });
-      }
-
-      // Validação de Choque/Sobreposição de Horários
+      // Validação de Choque/Sobreposição de Horários no Banco
       const conflictingAppointments = await db
         .select({ id: appointments.id })
         .from(appointments)
@@ -155,7 +121,7 @@ export const createAppointment: FastifyPluginAsyncZod = async (app) => {
         status: "success",
         message: "Agendamento criado com sucesso!",
         data: {
-          id: result[0].id,
+          id: String(result[0].id),
         },
       });
     },

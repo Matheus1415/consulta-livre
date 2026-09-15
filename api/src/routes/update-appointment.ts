@@ -3,6 +3,7 @@ import { z } from "zod";
 import { appointments } from "@/db/schema";
 import { db } from "@/db";
 import { and, eq, gt, lt, not, ne } from "drizzle-orm";
+import { AppointmentValidationService } from "@/services/appointmentValidation.service";
 
 export const updateAppointment: FastifyPluginAsyncZod = async (app) => {
   app.put(
@@ -60,32 +61,19 @@ export const updateAppointment: FastifyPluginAsyncZod = async (app) => {
       const startDate = new Date(start);
       const endDate = new Date(end);
 
-      // Validação de consistência básica
-      if (startDate >= endDate) {
-        return reply.status(400).send({
-          status: "error",
-          message: "A data inicial deve ser anterior à data final.",
-        });
-      }
-
-      // Validação de Horário Comercial (ignora Feriados)
+      // Validações de Regra de Negócio via Service (Horário comercial, Fim de semana e Cronologia)
       if (calendar !== "Feriados") {
-        const startHour = startDate.getHours();
-        const endHour = endDate.getHours();
-        const endMinutes = endDate.getMinutes();
+        const validation = AppointmentValidationService.validate(startDate, endDate);
 
-        const isStartValid = startHour >= 8 && startHour < 18;
-        const isEndValid = endHour < 18 || (endHour === 18 && endMinutes === 0);
-
-        if (!isStartValid || !isEndValid) {
+        if (!validation.isValid) {
           return reply.status(400).send({
             status: "error",
-            message: "Agendamentos só podem ser realizados entre 08:00 e 18:00.",
+            message: validation.error!,
           });
         }
       }
 
-      // Validação de Choque de Horários
+      // Validação de Choque de Horários no Banco de Dados
       const conflictStartParam = appointments.start.dataType === "string" ? start : startDate;
       const conflictEndParam = appointments.end.dataType === "string" ? end : endDate;
 
@@ -113,7 +101,6 @@ export const updateAppointment: FastifyPluginAsyncZod = async (app) => {
         });
       }
 
-      // Executa a atualização
       await db
         .update(appointments)
         .set({
