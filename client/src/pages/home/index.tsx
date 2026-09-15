@@ -21,7 +21,7 @@ export function Index() {
     year: new Date().getFullYear(),
   });
 
-  const { appointments = [], isLoading, refetch } = useAppointments({
+  const { appointments = [], isLoading } = useAppointments({
     month: currentDate.month,
     year: currentDate.year,
   });
@@ -46,7 +46,6 @@ export function Index() {
         events={events}
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}
-        onRefresh={refetch}
       />
 
       {isLoading && (

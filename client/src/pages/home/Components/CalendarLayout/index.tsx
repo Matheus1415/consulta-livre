@@ -5,6 +5,7 @@ import { CalendarTopBar } from "../CalendarTopBar";
 import { CalendarView } from "../CalendarView";
 import FullCalendar from "@fullcalendar/react";
 import { categories } from "@/styles/colors/calendar";
+import { CreateAppointmentSheet } from "../CreateAppointmentSheet";
 
 export interface CurrentDateState {
   month: number;
@@ -15,16 +16,17 @@ interface Props {
   events: CalendarEvent[];
   currentDate: CurrentDateState;
   setCurrentDate: Dispatch<SetStateAction<CurrentDateState>>;
-  onRefresh?: () => void;
 }
 
 export function CalendarLayout({
   events,
   currentDate,
   setCurrentDate,
-  onRefresh,
 }: Props) {
   const calendarRef = useRef<FullCalendar | null>(null);
+
+  // Estado para controlar a visibilidade da Sheet de Criação a partir da TopBar
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const ALL_CATEGORIES: CalendarCategory[] = [
     "Consulta",
@@ -50,8 +52,15 @@ export function CalendarLayout({
     );
   };
 
+  // Abre o modal de criação ao clicar no botão da TopBar
   const handleAddEvent = () => {
-    console.log("Adicionar agendamento");
+    setIsCreateOpen(true);
+  };
+
+  const handleCreatedSuccess = (newEvent: CalendarEvent) => {
+    if (calendarRef.current) {
+      calendarRef.current.getApi().addEvent(newEvent);
+    }
   };
 
   const toggleAllCategories = () => {
@@ -117,6 +126,13 @@ export function CalendarLayout({
           />
         </div>
       </div>
+
+      <CreateAppointmentSheet
+        open={isCreateOpen}
+        existingEvents={events}
+        onClose={() => setIsCreateOpen(false)}
+        onCreated={handleCreatedSuccess}
+      />
     </div>
   );
 }
