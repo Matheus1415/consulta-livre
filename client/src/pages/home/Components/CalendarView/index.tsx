@@ -25,34 +25,67 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
     );
     const [sheetOpen, setSheetOpen] = useState(false);
 
+    // Click em um evento existente
     const handleEventClick = (info: EventClickArg) => {
       const plainEvent = info.event.toPlainObject() as CalendarEvent;
+      console.log("[CalendarView] Evento selecionado para edição:", plainEvent);
+      
       setSelectedEvent(plainEvent);
       setSheetOpen(true);
     };
 
     const handleDateClick = (info: DateClickArg) => {
+      const startDate = new Date(info.date);
+      const endDate = new Date(info.date);
+      
+      if (!info.allDay) {
+        endDate.setHours(endDate.getHours() + 1);
+      }
+
       const newEvent: CalendarEvent = {
         id: crypto.randomUUID(),
-        title: "Novo evento",
+        title: "",
         start: info.dateStr,
+        end: endDate.toISOString(),
         allDay: info.allDay,
         extendedProps: {
-          calendar: "Outros",
-          priority: "low",
+          calendar: "Consulta",
+          pacienteNome: null,
+          pacienteTelefone: null,
+          motivo: null,
         },
       };
+
+      console.log("[CalendarView] Criando novo evento no dia/hora:", newEvent);
+      
+      setSelectedEvent(newEvent);
+      setSheetOpen(true);
     };
 
     const handleEventDrop = (info: EventDropArg) => {
-      const { event } = info;
+      const updatedEvent = info.event.toPlainObject() as CalendarEvent;
+      console.log("[CalendarView] Evento movido (Drop):", {
+        id: updatedEvent.id,
+        title: updatedEvent.title,
+        newStart: info.event.startStr,
+        newEnd: info.event.endStr,
+        event: updatedEvent,
+      });
     };
 
     const handleEventResize = (info: EventResizeDoneArg) => {
-      const { event } = info;
+      const updatedEvent = info.event.toPlainObject() as CalendarEvent;
+      console.log("[CalendarView] Evento redimensionado (Resize):", {
+        id: updatedEvent.id,
+        title: updatedEvent.title,
+        newStart: info.event.startStr,
+        newEnd: info.event.endStr,
+        event: updatedEvent,
+      });
     };
 
     const handleSaveEvent = (updatedEvent: CalendarEvent) => {
+      console.log("[CalendarView] Evento salvo/enviado pelo Sheet:", updatedEvent);
       setSheetOpen(false);
       setSelectedEvent(null);
     };
@@ -77,9 +110,7 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
           displayEventTime={false}
           eventClassNames={(arg) => {
             const rawCategory = arg.event.extendedProps.calendar || "Outros";
-
             const normalized = rawCategory.toLowerCase();
-
             return [`fc-bg-${normalized}`];
           }}
           headerToolbar={{
