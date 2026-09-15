@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -8,6 +8,7 @@ import ptBrLocale from "@fullcalendar/core/locales/pt-br";
 import type {
   DatesSetArg,
   EventClickArg,
+  EventContentArg,
   EventDropArg,
   EventResizeDoneArg,
 } from "@fullcalendar/core";
@@ -24,13 +25,17 @@ interface Props {
 }
 
 export const CalendarView = forwardRef<FullCalendar, Props>(
-  ({ events, onDatesSet }, calendarRef) => {
-    const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
-      null
-    );
+  ({ events, onDatesSet }, ref) => {
+    // 1. Ref local para o CalendarView conseguir interagir com a API do FullCalendar
+    const localCalendarRef = useRef<FullCalendar>(null);
+
+    // Repassa a ref local para a ref externa vinda do pai
+    useImperativeHandle(ref, () => localCalendarRef.current as FullCalendar);
+
+    const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+    const [sheetOpen, setSheetOpen] = useState(false);
 
     const { appointmentCreate, appointmentEdit } = useAppointmentsCrud();
-    const [sheetOpen, setSheetOpen] = useState(false);
 
     const handleEventClick = (info: EventClickArg) => {
       const plainEvent = info.event.toPlainObject() as CalendarEvent;
@@ -38,7 +43,6 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
       setSheetOpen(true);
     };
 
-    // Handler de novo evento
     const handleDateClick = async (info: DateClickArg) => {
       const { start, end } = findAvailableSlot(info.date, info.allDay, events);
 
@@ -74,26 +78,23 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
           },
         };
 
-        // Atualiza o evento e abre o modal
         setSelectedEvent(createdEvent);
         setSheetOpen(true);
-      } catch (error) {}
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Erro ao criar agendamento",
+          description:
+            error?.response?.data?.message ||
+            error?.message ||
+            "Não foi possível criar o agendamento.",
+        });
+      }
     };
 
     const handleEventDrop = (info: EventDropArg) => {
       const updatedEvent = info.event.toPlainObject() as CalendarEvent;
       console.log("[CalendarView] Evento movido (Drop):", {
-        id: updatedEvent.id,
-        title: updatedEvent.title,
-        newStart: info.event.startStr,
-        newEnd: info.event.endStr,
-        event: updatedEvent,
-      });
-    };
-
-    const handleEventResize = (info: EventResizeDoneArg) => {
-      const updatedEvent = info.event.toPlainObject() as CalendarEvent;
-      console.log("[CalendarView] Evento redimensionado (Resize):", {
         id: updatedEvent.id,
         title: updatedEvent.title,
         newStart: info.event.startStr,
@@ -125,18 +126,31 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
         setSelectedEvent(null);
       } catch (error: any) {
         toast({
+          variant: "destructive",
           title: "Erro ao salvar",
           description:
+            error?.response?.data?.message ||
             error?.message ||
             "Não foi possível salvar as alterações do agendamento.",
         });
       }
     };
 
+    const handleDeleteSuccess = (deletedId: string) => {
+      const calendarApi = localCalendarRef.current?.getApi();
+      const eventApi = calendarApi?.getEventById(deletedId);
+      if (eventApi) {
+        eventApi.remove();
+      }
+
+      setSelectedEvent(null);
+      setSheetOpen(false);
+    };
+
     return (
       <>
         <FullCalendar
-          ref={calendarRef}
+          ref={localCalendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
           locale={ptBrLocale}
@@ -146,7 +160,7 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
           events={events}
           eventClick={handleEventClick}
           eventDrop={handleEventDrop}
-          eventResize={handleEventResize}
+          eventResize={() => {}}
           dateClick={handleDateClick}
           datesSet={onDatesSet}
           dayMaxEvents={true}
@@ -172,6 +186,7 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
             setSheetOpen(false);
             setSelectedEvent(null);
           }}
+          onDeleteSuccess={handleDeleteSuccess}
           onSave={handleSaveEvent}
         />
       </>
@@ -181,7 +196,7 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
 
 CalendarView.displayName = "CalendarView";
 
-function renderEventContent(eventInfo: any) {
+function renderEventContent(eventInfo: EventContentArg) {
   return (
     <div className="w-full overflow-hidden flex items-center px-1">
       <span className="fc-event-title truncate text-xs font-medium leading-tight">
