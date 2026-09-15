@@ -13,6 +13,8 @@ import type {
 import type { CalendarEvent } from "@/@types/calendar.types";
 
 import { CalendarEventSheet } from "../CalendarEventSheet";
+import { useAppointmentsCrud } from "@/http/request/useAppointmentsCrud";
+import { findAvailableSlot } from "../../utils";
 
 interface Props {
   events: CalendarEvent[];
@@ -23,6 +25,8 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
       null
     );
+
+    const { appointmentCreate } = useAppointmentsCrud();
     const [sheetOpen, setSheetOpen] = useState(false);
 
     const handleEventClick = (info: EventClickArg) => {
@@ -33,59 +37,8 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
       setSheetOpen(true);
     };
 
-    // Função auxiliar para encontrar o próximo slot de 1h livre no dia
-    function findAvailableSlot(
-      clickedDate: Date,
-      isAllDay: boolean,
-      existingEvents: CalendarEvent[]
-    ): { start: Date; end: Date } {
-      const candidateStart = new Date(clickedDate);
-
-      // Se clicou na visão mensal (allDay), inicia a busca a partir das 08:00
-      if (isAllDay) {
-        candidateStart.setHours(8, 0, 0, 0);
-      } else {
-        // Arredonda para o início da hora clicada
-        candidateStart.setMinutes(0, 0, 0);
-      }
-
-      // Converte as datas dos eventos existentes para objetos Date para comparação
-      const parsedEvents = existingEvents.map((evt) => ({
-        start: new Date(evt.start),
-        end: new Date(evt.end || evt.start),
-      }));
-
-      // Limite da agenda no dia (ex: até 20:00)
-      const maxHour = 20;
-
-      while (candidateStart.getHours() < maxHour) {
-        const candidateEnd = new Date(candidateStart);
-        candidateEnd.setHours(candidateEnd.getHours() + 1);
-
-        // Verifica se há colisão (StartA < EndB && EndA > StartB)
-        const hasOverlap = parsedEvents.some(
-          (evt) => candidateStart < evt.end && candidateEnd > evt.start
-        );
-
-        if (!hasOverlap) {
-          return { start: candidateStart, end: candidateEnd };
-        }
-
-        // Avança 30 minutos para testar o próximo horário
-        candidateStart.setMinutes(candidateStart.getMinutes() + 30);
-      }
-
-      // Fallback se o dia estiver lotado: usa as 08:00 do dia clicado
-      const fallbackStart = new Date(clickedDate);
-      if (isAllDay) fallbackStart.setHours(8, 0, 0, 0);
-      const fallbackEnd = new Date(fallbackStart);
-      fallbackEnd.setHours(fallbackEnd.getHours() + 1);
-
-      return { start: fallbackStart, end: fallbackEnd };
-    }
-
-    // Handler dentro do componente CalendarView
-    const handleDateClick = (info: DateClickArg) => {
+    // Handler de novo evento
+    const handleDateClick = async (info: DateClickArg) => {
       const { start, end } = findAvailableSlot(info.date, info.allDay, events);
 
       const defaultPatient = {
@@ -93,23 +46,37 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
         telefone: "(85) 99999-8888",
       };
 
-      const newEvent: CalendarEvent = {
-        id: crypto.randomUUID(),
+      const payload = {
         title: `Consulta - ${defaultPatient.nome}`,
+        calendar: "Consulta" as const,
+        patientName: defaultPatient.nome,
+        patientPhone: defaultPatient.telefone,
+        blockReason: null,
         start: start.toISOString(),
         end: end.toISOString(),
-        allDay: false,
-        extendedProps: {
-          calendar: "Consulta",
-          pacienteNome: defaultPatient.nome,
-          pacienteTelefone: defaultPatient.telefone,
-        },
       };
 
-      console.log("[CalendarView] Slot livre encontrado e evento criado:", newEvent);
+      try {
+        const response = await appointmentCreate(payload);
 
-      setSelectedEvent(newEvent);
-      setSheetOpen(true);
+        const createdEvent: CalendarEvent = {
+          id: response.data.id,
+          title: payload.title,
+          start: payload.start,
+          end: payload.end,
+          allDay: false,
+          extendedProps: {
+            calendar: payload.calendar,
+            pacienteNome: payload.patientName,
+            pacienteTelefone: payload.patientPhone,
+            motivo: payload.blockReason,
+          },
+        };
+
+        // Atualiza o evento e abre o modal
+        setSelectedEvent(createdEvent);
+        setSheetOpen(true);
+      } catch (error) { }
     };
 
     const handleEventDrop = (info: EventDropArg) => {
