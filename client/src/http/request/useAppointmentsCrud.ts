@@ -15,6 +15,18 @@ export interface AppointmentPayload {
   blockReason?: string | null;
 }
 
+export interface AvailableSlot {
+  time: string;
+  available: boolean;
+  isOccupied: boolean;
+}
+
+export interface AvailableSlotsData {
+  date: string;
+  isHoliday: boolean;
+  slots: AvailableSlot[];
+}
+
 export function useAppointmentsCrud() {
   const URL_BASE = "/appointments";
 
@@ -90,9 +102,31 @@ export function useAppointmentsCrud() {
     }
   }
 
+  async function getAvailableSlots(
+    date: string,
+  ): Promise<ApiSuccess<AvailableSlotsData>> {
+    const URL_AVAILABLE_SLOTS = `${URL_BASE}/available-slots`;
+
+    try {
+      const response = await Api.get<ApiSuccess<AvailableSlotsData>>(
+        URL_AVAILABLE_SLOTS,
+        {
+          params: { date },
+        },
+      );
+
+      return response.data;
+    } catch (error) {
+      const apiError =
+        (error as AxiosError<ApiError>).response?.data ?? DEFAULT_API_ERROR;
+      throw apiError;
+    }
+  }
+
   return {
     appointmentCreate,
     appointmentEdit,
-    appointmentDelete
+    appointmentDelete,
+    getAvailableSlots
   };
 }
