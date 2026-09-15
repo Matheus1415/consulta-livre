@@ -1,73 +1,51 @@
-import type { CalendarEvent } from "@/@types/calendar.types";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import type { CalendarCategory, CalendarEvent } from "@/@types/calendar.types";
 import { CalendarLayout } from "./Components/CalendarLayout";
+import { useAppointments } from "@/http/request/useAppointments";
+
+const CATEGORY_COLORS: Record<CalendarCategory, string> = {
+  Consulta: "#6366f1", 
+  Bloqueio: "#f43f5e", 
+  Feriados: "#059669",
+  Outros: "#6b7280", 
+};
 
 export function Index() {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [currentDate, setCurrentDate] = useState({
+    month: 9,
+    year: 2026,
+  });
 
-  useEffect(() => {
-    // Definido para Setembro de 2026 (mês 8 no objeto Date, pois começa em 0)
-    const year = 2026;
-    const month = 8; // Setembro
+  const { appointments, isLoading } = useAppointments({
+    month: currentDate.month,
+    year: currentDate.year,
+  });
 
-    setEvents([
-      {
-        id: "1",
-        title: "Consulta - Maria Silva",
-        start: new Date(year, month, 15, 9, 0).toISOString(),
-        end: new Date(year, month, 15, 10, 0).toISOString(),
-        backgroundColor: "#6366f1",
-        extendedProps: {
-          calendar: "Consulta",
-          pacienteNome: "Maria Silva",
-          pacienteTelefone: "(11) 98765-4321",
-          status: "confirmado",
-          description: "Primeira consulta de rotina",
-          priority: "high",
-        },
-      },
-      {
-        id: "2",
-        title: "Consulta - João Santos",
-        start: new Date(year, month, 15, 14, 0).toISOString(),
-        end: new Date(year, month, 15, 15, 0).toISOString(),
-        backgroundColor: "#6366f1",
-        extendedProps: {
-          calendar: "Consulta",
-          pacienteNome: "João Santos",
-          pacienteTelefone: "(11) 91234-5678",
-          status: "agendado",
-          description: "Retorno exames",
-          priority: "medium",
-        },
-      },
-      {
-        id: "3",
-        title: "Almoço / Pausa",
-        start: new Date(year, month, 16, 12, 0).toISOString(),
-        end: new Date(year, month, 16, 13, 0).toISOString(),
-        backgroundColor: "#f43f5e",
-        extendedProps: {
-          calendar: "Bloqueio",
-          motivo: "Horário de almoço da equipe",
-          priority: "low",
-        },
-      },
-      {
-        id: "4",
-        title: "Independência do Brasil (Feriado)",
-        start: new Date(year, month, 7).toISOString(),
-        allDay: true,
-        backgroundColor: "#059669",
-        extendedProps: {
-          calendar: "Feriados",
-          nacional: true,
-          description: "Feriado nacional sincronizado (Nager.Date)",
-          priority: "low",
-        },
-      },
-    ]);
-  }, []);
+  const events: CalendarEvent[] = appointments.map((appointment) => ({
+    id: appointment.id,
+    title: appointment.title,
+    start: appointment.start,
+    end: appointment.end,
+    backgroundColor: CATEGORY_COLORS[appointment.calendar] ?? CATEGORY_COLORS.Outros,
+    extendedProps: {
+      calendar: appointment.calendar,
+      pacienteNome: appointment.patientName,
+      pacienteTelefone: appointment.patientPhone,
+      motivo: appointment.blockReason,
+    },
+  }));
 
-  return <CalendarLayout events={events} onEventsChange={setEvents} />;
+  console.log(events)
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <span className="text-muted-foreground animate-pulse">
+          Carregando agendamentos...
+        </span>
+      </div>
+    );
+  }
+
+  return <CalendarLayout events={events} />;
 }

@@ -8,10 +8,9 @@ import { categories } from "@/styles/colors/calendar";
 
 interface Props {
   events: CalendarEvent[];
-  onEventsChange: (events: CalendarEvent[]) => void;
 }
 
-export function CalendarLayout({ events, onEventsChange }: Props) {
+export function CalendarLayout({ events }: Props) {
   const calendarRef = useRef<FullCalendar | null>(null);
 
   const ALL_CATEGORIES: CalendarCategory[] = [
@@ -77,7 +76,6 @@ export function CalendarLayout({ events, onEventsChange }: Props) {
           <CalendarView
             ref={calendarRef}
             events={filteredEvents}
-            onEventsChange={onEventsChange}
           />
         </div>
       </div>

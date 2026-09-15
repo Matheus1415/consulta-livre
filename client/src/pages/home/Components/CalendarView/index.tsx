@@ -2,7 +2,7 @@ import { forwardRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
+import interactionPlugin, { type DateClickArg } from "@fullcalendar/interaction";
 import ptBrLocale from "@fullcalendar/core/locales/pt-br";
 
 import type {
@@ -16,11 +16,10 @@ import { CalendarEventSheet } from "../CalendarEventSheet";
 
 interface Props {
   events: CalendarEvent[];
-  onEventsChange: (events: CalendarEvent[]) => void;
 }
 
 export const CalendarView = forwardRef<FullCalendar, Props>(
-  ({ events, onEventsChange }, calendarRef) => {
+  ({ events }, calendarRef) => {
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
       null
     );
@@ -43,46 +42,17 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
           priority: "low",
         },
       };
-      onEventsChange([...events, newEvent]);
     };
 
     const handleEventDrop = (info: EventDropArg) => {
       const { event } = info;
-
-      onEventsChange(
-        events.map((ev) =>
-          ev.id === event.id
-            ? {
-                ...ev,
-                start: event.start?.toISOString(),
-                end: event.end?.toISOString(),
-              }
-            : ev
-        )
-      );
     };
 
     const handleEventResize = (info: EventResizeDoneArg) => {
       const { event } = info;
-
-      onEventsChange(
-        events.map((ev) =>
-          ev.id === event.id
-            ? {
-                ...ev,
-                start: event.start?.toISOString(),
-                end: event.end?.toISOString(),
-              }
-            : ev
-        )
-      );
     };
 
     const handleSaveEvent = (updatedEvent: CalendarEvent) => {
-      onEventsChange(
-        events.map((ev) => (ev.id === updatedEvent.id ? updatedEvent : ev))
-      );
-
       setSheetOpen(false);
       setSelectedEvent(null);
     };
