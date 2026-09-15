@@ -72,8 +72,27 @@ export function useAppointmentsCrud() {
     }
   }
 
+  async function appointmentDelete(
+    id: string | number,
+  ): Promise<ApiSuccess<void>> {
+    const URL_DELETE = `${URL_BASE}/${id}`;
+
+    try {
+      const response = await Api.delete<ApiSuccess<void>>(URL_DELETE);
+
+      revalidateAppointments();
+
+      return response.data;
+    } catch (error) {
+      const apiError =
+        (error as AxiosError<ApiError>).response?.data ?? DEFAULT_API_ERROR;
+      throw apiError;
+    }
+  }
+
   return {
     appointmentCreate,
-    appointmentEdit
+    appointmentEdit,
+    appointmentDelete
   };
 }
