@@ -1,0 +1,59 @@
+import { DEFAULT_API_ERROR } from "@/http/responses/default";
+import type { ApiError } from "@/http/types/ApiErro";
+import type { ApiSuccess } from "@/http/types/ApiSuccess";
+import { Api } from "@/lib/axios/api";
+import { AxiosError } from "axios";
+import { mutate } from "swr";
+
+export interface AppointmentPayload {
+  title: string;
+  calendar: "Consulta" | "Feriados" | "Bloqueio" | "Outros";
+  start: string;
+  end: string;
+  patientName?: string | null;
+  patientPhone?: string | null;
+  blockReason?: string | null;
+}
+
+export function useAppointmentsCrud() {
+  const URL_BASE = "/appointments";
+
+  const revalidateAppointments = () => {
+    mutate((key) => {
+      if (typeof key === "string") {
+        return key.startsWith(URL_BASE);
+      }
+
+      if (Array.isArray(key)) {
+        return key[0] === URL_BASE;
+      }
+
+      if (typeof key === "object" && key !== null) {
+        const swrKey = key as { url?: string };
+        return swrKey.url === URL_BASE;
+      }
+
+      return false;
+    });
+  };
+
+  async function appointmentCreate<T = AppointmentPayload>(
+    data: AppointmentPayload
+  ): Promise<ApiSuccess<T>> {
+    try {
+      const response = await Api.post<ApiSuccess<T>>(URL_BASE, data);
+
+      revalidateAppointments();
+
+      return response.data;
+    } catch (error) {
+      const apiError =
+        (error as AxiosError<ApiError>).response?.data ?? DEFAULT_API_ERROR;
+      throw apiError;
+    }
+  }
+
+  return {
+    appointmentCreate
+  };
+}
