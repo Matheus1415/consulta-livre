@@ -38,7 +38,7 @@ export function useAppointmentsCrud() {
   };
 
   async function appointmentCreate<T = AppointmentPayload>(
-    data: AppointmentPayload
+    data: AppointmentPayload,
   ): Promise<ApiSuccess<T>> {
     try {
       const response = await Api.post<ApiSuccess<T>>(URL_BASE, data);
@@ -53,7 +53,27 @@ export function useAppointmentsCrud() {
     }
   }
 
+  async function appointmentEdit<T = AppointmentPayload>(
+    id: string | number,
+    data: Partial<AppointmentPayload>,
+  ): Promise<ApiSuccess<T>> {
+    const URL_EDIT = `${URL_BASE}/${id}`;
+
+    try {
+      const response = await Api.put<ApiSuccess<T>>(URL_EDIT, data);
+
+      revalidateAppointments();
+
+      return response.data;
+    } catch (error) {
+      const apiError =
+        (error as AxiosError<ApiError>).response?.data ?? DEFAULT_API_ERROR;
+      throw apiError;
+    }
+  }
+
   return {
-    appointmentCreate
+    appointmentCreate,
+    appointmentEdit
   };
 }
