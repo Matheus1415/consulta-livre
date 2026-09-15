@@ -62,3 +62,13 @@ export function findAvailableSlot(
 
   return { start: fallbackStart, end: fallbackEnd };
 }
+
+export function toLocalDateTimeString(date: Date): string {
+  return date.toISOString();
+}
+// Utilitário para garantir que os minutos e segundos fiquem sempre zerados (:00)
+export function zeroMinutes(date: Date): Date {
+  const cleanDate = new Date(date);
+  cleanDate.setMinutes(0, 0, 0);
+  return cleanDate;
+}

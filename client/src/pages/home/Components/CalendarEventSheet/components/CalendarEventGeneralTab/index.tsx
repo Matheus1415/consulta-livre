@@ -28,10 +28,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ptBR } from "date-fns/locale";
-import { format, startOfDay, endOfDay } from "date-fns";
+import { format, startOfDay, endOfDay, addHours, subHours } from "date-fns";
 import { Save, CalendarIcon, Tag, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
+import { toLocalDateTimeString, zeroMinutes } from "@/pages/home/utils";
 
 export type CalendarCategory = "Consulta" | "Feriados" | "Bloqueio" | "Outros";
 
@@ -40,23 +41,44 @@ interface Props {
   onSave: (event: CalendarEvent) => void;
 }
 
-function toLocalDateTimeString(date: Date): string {
-  return date.toISOString();
-}
-
 export function CalendarEventGeneralTab({ data, onSave }: Props) {
+  const initialStart = data.start ? zeroMinutes(new Date(data.start)) : zeroMinutes(new Date());
+  const initialEnd = data.end ? zeroMinutes(new Date(data.end)) : addHours(initialStart, 1);
+
   const form = useForm<EventFormData>({
     resolver: zodResolver(EventSchema),
     defaultValues: {
       title: data.title ?? "",
-      start: data.start ? new Date(data.start).toISOString() : "",
-      end: data.end ? new Date(data.end).toISOString() : "",
+      start: toLocalDateTimeString(initialStart),
+      end: toLocalDateTimeString(initialEnd),
       calendar: (data.extendedProps?.calendar as CalendarCategory) ?? "Outros",
     },
   });
 
   const calendarType = form.watch("calendar");
   const isHoliday = calendarType === "Feriados";
+
+  // Altera o horário de início e atualiza o fim para +1h
+  const handleStartChange = (newStartDate: Date) => {
+    const cleanStart = zeroMinutes(newStartDate);
+    const cleanEnd = addHours(cleanStart, 1);
+
+    form.setValue("start", toLocalDateTimeString(cleanStart), { shouldValidate: true });
+    if (!isHoliday) {
+      form.setValue("end", toLocalDateTimeString(cleanEnd), { shouldValidate: true });
+    }
+  };
+
+  // Altera o horário de fim e atualiza o início para -1h
+  const handleEndChange = (newEndDate: Date) => {
+    const cleanEnd = zeroMinutes(newEndDate);
+    const cleanStart = subHours(cleanEnd, 1);
+
+    form.setValue("end", toLocalDateTimeString(cleanEnd), { shouldValidate: true });
+    if (!isHoliday) {
+      form.setValue("start", toLocalDateTimeString(cleanStart), { shouldValidate: true });
+    }
+  };
 
   // Ajusta automaticamente para o dia todo (00:00 até 23:59) se a categoria for Feriados
   useEffect(() => {
@@ -218,6 +240,7 @@ export function CalendarEventGeneralTab({ data, onSave }: Props) {
               </FormItem>
             )}
 
+            {/* DATA / HORA INICIAL */}
             <FormField
               control={form.control}
               name="start"
@@ -263,8 +286,8 @@ export function CalendarEventGeneralTab({ data, onSave }: Props) {
                           onSelect={(date) => {
                             if (!date) return;
                             const current = selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
-                            date.setHours(current.getHours(), current.getMinutes(), 0);
-                            field.onChange(toLocalDateTimeString(date));
+                            date.setHours(current.getHours(), 0, 0, 0);
+                            handleStartChange(date);
                           }}
                           locale={ptBR}
                           initialFocus
@@ -275,14 +298,14 @@ export function CalendarEventGeneralTab({ data, onSave }: Props) {
                             Horário
                           </span>
 
-                          <div className="flex items-center gap-1 bg-neutral-900 p-1 rounded-lg border border-neutral-800">
+                          <div className="flex items-center gap-1 bg-neutral-900 p-1 px-2 rounded-lg border border-neutral-800">
                             <Select
                               value={selectedDate && !isNaN(selectedDate.getTime()) ? String(selectedDate.getHours()).padStart(2, "0") : "00"}
                               onValueChange={(val) => {
                                 const current = selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
                                 const updated = new Date(current);
-                                updated.setHours(Number(val));
-                                field.onChange(toLocalDateTimeString(updated));
+                                updated.setHours(Number(val), 0, 0, 0);
+                                handleStartChange(updated);
                               }}
                             >
                               <SelectTrigger className="h-7 w-[54px] bg-transparent border-none text-xs text-neutral-200 focus:ring-0 p-1 justify-center gap-1">
@@ -300,31 +323,7 @@ export function CalendarEventGeneralTab({ data, onSave }: Props) {
                               </SelectContent>
                             </Select>
 
-                            <span className="text-neutral-600 text-xs">:</span>
-
-                            <Select
-                              value={selectedDate && !isNaN(selectedDate.getTime()) ? String(selectedDate.getMinutes()).padStart(2, "0") : "00"}
-                              onValueChange={(val) => {
-                                const current = selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
-                                const updated = new Date(current);
-                                updated.setMinutes(Number(val));
-                                field.onChange(toLocalDateTimeString(updated));
-                              }}
-                            >
-                              <SelectTrigger className="h-7 w-[54px] bg-transparent border-none text-xs text-neutral-200 focus:ring-0 p-1 justify-center gap-1">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent position="popper" className="max-h-[160px] w-[65px] overflow-y-auto bg-neutral-900 border-neutral-800 text-neutral-200">
-                                {Array.from({ length: 60 }, (_, i) => {
-                                  const min = String(i).padStart(2, "0");
-                                  return (
-                                    <SelectItem key={i} value={min} className="text-xs focus:bg-neutral-800 focus:text-neutral-100">
-                                      {min}m
-                                    </SelectItem>
-                                  );
-                                })}
-                              </SelectContent>
-                            </Select>
+                            <span className="text-neutral-400 text-xs font-semibold px-0.5">:00</span>
                           </div>
                         </div>
                       </PopoverContent>
@@ -335,6 +334,7 @@ export function CalendarEventGeneralTab({ data, onSave }: Props) {
               }}
             />
 
+            {/* DATA / HORA FINAL */}
             <FormField
               control={form.control}
               name="end"
@@ -380,8 +380,8 @@ export function CalendarEventGeneralTab({ data, onSave }: Props) {
                           onSelect={(date) => {
                             if (!date) return;
                             const current = selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
-                            date.setHours(current.getHours(), current.getMinutes(), 0);
-                            field.onChange(toLocalDateTimeString(date));
+                            date.setHours(current.getHours(), 0, 0, 0);
+                            handleEndChange(date);
                           }}
                           locale={ptBR}
                           initialFocus
@@ -392,14 +392,14 @@ export function CalendarEventGeneralTab({ data, onSave }: Props) {
                             Horário
                           </span>
 
-                          <div className="flex items-center gap-1 bg-neutral-900 p-1 rounded-lg border border-neutral-800">
+                          <div className="flex items-center gap-1 bg-neutral-900 p-1 px-2 rounded-lg border border-neutral-800">
                             <Select
                               value={selectedDate && !isNaN(selectedDate.getTime()) ? String(selectedDate.getHours()).padStart(2, "0") : "00"}
                               onValueChange={(val) => {
                                 const current = selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
                                 const updated = new Date(current);
-                                updated.setHours(Number(val));
-                                field.onChange(toLocalDateTimeString(updated));
+                                updated.setHours(Number(val), 0, 0, 0);
+                                handleEndChange(updated);
                               }}
                             >
                               <SelectTrigger className="h-7 w-[54px] bg-transparent border-none text-xs text-neutral-200 focus:ring-0 p-1 justify-center gap-1">
@@ -417,31 +417,7 @@ export function CalendarEventGeneralTab({ data, onSave }: Props) {
                               </SelectContent>
                             </Select>
 
-                            <span className="text-neutral-600 text-xs">:</span>
-
-                            <Select
-                              value={selectedDate && !isNaN(selectedDate.getTime()) ? String(selectedDate.getMinutes()).padStart(2, "0") : "00"}
-                              onValueChange={(val) => {
-                                const current = selectedDate && !isNaN(selectedDate.getTime()) ? selectedDate : new Date();
-                                const updated = new Date(current);
-                                updated.setMinutes(Number(val));
-                                field.onChange(toLocalDateTimeString(updated));
-                              }}
-                            >
-                              <SelectTrigger className="h-7 w-[54px] bg-transparent border-none text-xs text-neutral-200 focus:ring-0 p-1 justify-center gap-1">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent position="popper" className="max-h-[160px] w-[65px] overflow-y-auto bg-neutral-900 border-neutral-800 text-neutral-200">
-                                {Array.from({ length: 60 }, (_, i) => {
-                                  const min = String(i).padStart(2, "0");
-                                  return (
-                                    <SelectItem key={i} value={min} className="text-xs focus:bg-neutral-800 focus:text-neutral-100">
-                                      {min}m
-                                    </SelectItem>
-                                  );
-                                })}
-                              </SelectContent>
-                            </Select>
+                            <span className="text-neutral-400 text-xs font-semibold px-0.5">:00</span>
                           </div>
                         </div>
                       </PopoverContent>
