@@ -15,6 +15,7 @@ import type { CalendarEvent } from "@/@types/calendar.types";
 import { CalendarEventSheet } from "../CalendarEventSheet";
 import { useAppointmentsCrud } from "@/http/request/useAppointmentsCrud";
 import { findAvailableSlot } from "../../utils";
+import { toast } from "@/components/ui/use-toast";
 
 interface Props {
   events: CalendarEvent[];
@@ -26,13 +27,11 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
       null
     );
 
-    const { appointmentCreate } = useAppointmentsCrud();
+    const { appointmentCreate, appointmentEdit } = useAppointmentsCrud();
     const [sheetOpen, setSheetOpen] = useState(false);
 
     const handleEventClick = (info: EventClickArg) => {
       const plainEvent = info.event.toPlainObject() as CalendarEvent;
-      console.log("[CalendarView] Evento selecionado para edição:", plainEvent);
-
       setSelectedEvent(plainEvent);
       setSheetOpen(true);
     };
@@ -101,10 +100,33 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
       });
     };
 
-    const handleSaveEvent = (updatedEvent: CalendarEvent) => {
-      console.log("[CalendarView] Evento salvo/enviado pelo Sheet:", updatedEvent);
-      setSheetOpen(false);
-      setSelectedEvent(null);
+    const handleSaveEvent = async (updatedEvent: CalendarEvent) => {
+      try {
+        const payload = {
+          title: updatedEvent.title,
+          calendar: updatedEvent.extendedProps?.calendar ?? "Outros",
+          patientName: updatedEvent.extendedProps?.pacienteNome ?? null,
+          patientPhone: updatedEvent.extendedProps?.pacienteTelefone ?? null,
+          blockReason: updatedEvent.extendedProps?.motivo ?? null,
+          start: new Date(updatedEvent.start).toISOString(),
+          end: new Date(updatedEvent.end || updatedEvent.start).toISOString(),
+        };
+
+        await appointmentEdit(updatedEvent.id, payload);
+
+        toast({
+          title: "Agendamento atualizado",
+          description: "As alterações foram salvas com sucesso.",
+        });
+
+        setSheetOpen(false);
+        setSelectedEvent(null);
+      } catch (error: any) {
+        toast({
+          title: "Erro ao salvar",
+          description: error?.message || "Não foi possível salvar as alterações do agendamento.",
+        });
+      }
     };
 
     return (

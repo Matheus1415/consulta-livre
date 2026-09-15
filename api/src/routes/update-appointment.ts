@@ -2,7 +2,7 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { appointments } from "@/db/schema";
 import { db } from "@/db";
-import { and, eq, gt, lt, ne } from "drizzle-orm";
+import { and, eq, gt, lt, not, ne } from "drizzle-orm";
 
 export const updateAppointment: FastifyPluginAsyncZod = async (app) => {
   app.put(
@@ -31,18 +31,9 @@ export const updateAppointment: FastifyPluginAsyncZod = async (app) => {
               id: z.string(),
             }),
           }),
-          400: z.object({
-            status: z.string(),
-            message: z.string(),
-          }),
-          404: z.object({
-            status: z.string(),
-            message: z.string(),
-          }),
-          409: z.object({
-            status: z.string(),
-            message: z.string(),
-          }),
+          400: z.object({ status: z.string(), message: z.string() }),
+          404: z.object({ status: z.string(), message: z.string() }),
+          409: z.object({ status: z.string(), message: z.string() }),
         },
       },
     },
@@ -50,11 +41,13 @@ export const updateAppointment: FastifyPluginAsyncZod = async (app) => {
       const { id } = request.params;
       const { title, calendar, patientName, patientPhone, blockReason, start, end } = request.body;
 
+      const targetId = isNaN(Number(id)) ? id : Number(id);
+
       // Verifica se o agendamento existe
       const existingAppointment = await db
         .select({ id: appointments.id })
         .from(appointments)
-        .where(eq(appointments.id, id))
+        .where(eq(appointments.id, targetId as any))
         .limit(1);
 
       if (existingAppointment.length === 0) {
@@ -75,30 +68,40 @@ export const updateAppointment: FastifyPluginAsyncZod = async (app) => {
         });
       }
 
-      // Validação de Horário Comercial (08:00 às 18:00)
-      const startHour = startDate.getHours();
-      const endHour = endDate.getHours();
-      const endMinutes = endDate.getMinutes();
+      // Validação de Horário Comercial (ignora Feriados)
+      if (calendar !== "Feriados") {
+        const startHour = startDate.getHours();
+        const endHour = endDate.getHours();
+        const endMinutes = endDate.getMinutes();
 
-      const isStartValid = startHour >= 8 && startHour < 18;
-      const isEndValid = endHour < 18 || (endHour === 18 && endMinutes === 0);
+        const isStartValid = startHour >= 8 && startHour < 18;
+        const isEndValid = endHour < 18 || (endHour === 18 && endMinutes === 0);
 
-      if (!isStartValid || !isEndValid) {
-        return reply.status(400).send({
-          status: "error",
-          message: "Agendamentos só podem ser realizados entre 08:00 e 18:00.",
-        });
+        if (!isStartValid || !isEndValid) {
+          return reply.status(400).send({
+            status: "error",
+            message: "Agendamentos só podem ser realizados entre 08:00 e 18:00.",
+          });
+        }
       }
 
-      // Validação de Choque de Horários (ignorando o próprio evento sendo editado)
+      // Validação de Choque de Horários
+      const conflictStartParam = appointments.start.dataType === "string" ? start : startDate;
+      const conflictEndParam = appointments.end.dataType === "string" ? end : endDate;
+
       const conflictingAppointments = await db
-        .select({ id: appointments.id })
+        .select({ 
+          id: appointments.id,
+          title: appointments.title,
+          calendar: appointments.calendar 
+        })
         .from(appointments)
         .where(
           and(
-            ne(appointments.id, id),
-            lt(appointments.start, endDate),
-            gt(appointments.end, startDate)
+            not(eq(appointments.id, targetId as any)),
+            ne(appointments.calendar, "Feriados"),
+            lt(appointments.start, conflictEndParam as any),
+            gt(appointments.end, conflictStartParam as any)
           )
         )
         .limit(1);
@@ -106,7 +109,7 @@ export const updateAppointment: FastifyPluginAsyncZod = async (app) => {
       if (conflictingAppointments.length > 0) {
         return reply.status(409).send({
           status: "error",
-          message: "Já existe outro agendamento cadastrado para este horário.",
+          message: `Já existe outro agendamento ("${conflictingAppointments[0].title}") cadastrado para este horário.`,
         });
       }
 
@@ -122,14 +125,12 @@ export const updateAppointment: FastifyPluginAsyncZod = async (app) => {
           start: startDate,
           end: endDate,
         })
-        .where(eq(appointments.id, id));
+        .where(eq(appointments.id, targetId as any));
 
       return reply.status(200).send({
         status: "success",
         message: "Agendamento atualizado com sucesso!",
-        data: {
-          id,
-        },
+        data: { id },
       });
     }
   );

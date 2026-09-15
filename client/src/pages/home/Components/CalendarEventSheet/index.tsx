@@ -18,10 +18,11 @@ import { CalendarDays, Info } from "lucide-react";
 interface Props {
   open: boolean;
   event: CalendarEvent | null;
+  onSave: (event: CalendarEvent) => void;
   onClose: () => void;
 }
 
-export function CalendarEventSheet({ open, event, onClose }: Props) {
+export function CalendarEventSheet({ open, event, onSave, onClose }: Props) {
   const [form, setForm] = useState<CalendarEvent | null>(null);
   const calendarKey = event?.extendedProps?.calendar ?? "Outros";
   const cat = categories.find((c) => c.key === calendarKey) || categories[0];
@@ -100,7 +101,7 @@ export function CalendarEventSheet({ open, event, onClose }: Props) {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="geral">
-              <CalendarEventGeneralTab data={form} />
+              <CalendarEventGeneralTab data={form} onSave={onSave} />
             </TabsContent>
             <TabsContent value="detalhes">
               <CalendarEventMetaTab data={form} />

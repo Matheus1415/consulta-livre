@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import { ptBR } from "date-fns/locale";
 import { format, startOfDay, endOfDay } from "date-fns";
-import { Save, CalendarIcon, Tag } from "lucide-react";
+import { Save, CalendarIcon, Tag, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
 
@@ -37,13 +37,14 @@ export type CalendarCategory = "Consulta" | "Feriados" | "Bloqueio" | "Outros";
 
 interface Props {
   data: CalendarEvent;
+  onSave: (event: CalendarEvent) => void;
 }
 
 function toLocalDateTimeString(date: Date): string {
   return date.toISOString();
 }
 
-export function CalendarEventGeneralTab({ data }: Props) {
+export function CalendarEventGeneralTab({ data, onSave }: Props) {
   const form = useForm<EventFormData>({
     resolver: zodResolver(EventSchema),
     defaultValues: {
@@ -55,10 +56,11 @@ export function CalendarEventGeneralTab({ data }: Props) {
   });
 
   const calendarType = form.watch("calendar");
+  const isHoliday = calendarType === "Feriados";
 
   // Ajusta automaticamente para o dia todo (00:00 até 23:59) se a categoria for Feriados
   useEffect(() => {
-    if (calendarType === "Feriados") {
+    if (isHoliday) {
       const currentStart = form.getValues("start");
       const baseDate = currentStart && !isNaN(new Date(currentStart).getTime()) 
         ? new Date(currentStart) 
@@ -70,25 +72,35 @@ export function CalendarEventGeneralTab({ data }: Props) {
       form.setValue("start", toLocalDateTimeString(startDate));
       form.setValue("end", toLocalDateTimeString(endDate));
     }
-  }, [calendarType, form]);
+  }, [calendarType, isHoliday, form]);
 
   function onSubmit(values: EventFormData) {
-    const payload = {
-      ...values,
-      start: values.start ? new Date(values.start).toISOString() : "",
-      end: values.end ? new Date(values.end).toISOString() : null,
+    if (isHoliday) return;
+
+    const payload: CalendarEvent = {
+      ...data,
+      title: values.title,
+      start: values.start ? new Date(values.start).toISOString() : data.start,
+      end: values.end ? new Date(values.end).toISOString() : data.end,
       extendedProps: {
         ...data.extendedProps,
         calendar: values.calendar,
       },
     };
 
-    console.log("Dados editados:", payload);
+    onSave(payload);
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {isHoliday && (
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs flex items-center gap-2">
+            <Lock className="h-4 w-4 shrink-0" />
+            <span>Eventos marcados como feriado não podem ser editados.</span>
+          </div>
+        )}
+
         <div className="grid gap-4 mb-4">
           <div className="grid md:grid-cols-2 gap-4">
             <FormField
@@ -99,8 +111,9 @@ export function CalendarEventGeneralTab({ data }: Props) {
                   <FormLabel>Título / Descrição do Evento</FormLabel>
                   <FormControl>
                     <Input 
+                      disabled={isHoliday}
                       placeholder="Ex: Consulta - Maria Silva" 
-                      className="bg-neutral-900 border-neutral-700 text-neutral-200" 
+                      className="bg-neutral-900 border-neutral-700 text-neutral-200 disabled:opacity-50" 
                       {...field} 
                     />
                   </FormControl>
@@ -109,18 +122,21 @@ export function CalendarEventGeneralTab({ data }: Props) {
               )}
             />
 
-            {/* Seletor de Categoria do Calendário Estilizado */}
             <FormField
               control={form.control}
               name="calendar"
               render={({ field }) => (
                 <FormItem className="md:col-span-2 relative">
                   <FormLabel>Categoria do Calendário</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select 
+                    disabled={data.extendedProps?.calendar === "Feriados"} 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                  >
                     <FormControl>
                       <div className="relative">
                         <Tag className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400 pointer-events-none z-10" />
-                        <SelectTrigger className="w-full h-11 bg-neutral-900 border border-neutral-700 rounded-xl pl-10 text-neutral-200 hover:border-neutral-600 transition-all focus:ring-2 focus:ring-blue-600/40 focus:border-blue-600">
+                        <SelectTrigger className="w-full h-11 bg-neutral-900 border border-neutral-700 rounded-xl pl-10 text-neutral-200 hover:border-neutral-600 transition-all focus:ring-2 focus:ring-blue-600/40 focus:border-blue-600 disabled:opacity-50">
                           <SelectValue placeholder="Selecione a categoria" />
                         </SelectTrigger>
                       </div>
@@ -167,23 +183,24 @@ export function CalendarEventGeneralTab({ data }: Props) {
               )}
             />
 
-            {/* Campos específicos do domínio da clínica */}
             {calendarType === "Consulta" && (
               <>
                 <FormItem>
                   <FormLabel>Nome do Paciente</FormLabel>
                   <Input 
+                    disabled={isHoliday}
                     defaultValue={data.extendedProps?.pacienteNome ?? ""} 
                     placeholder="Digite o nome do paciente" 
-                    className="bg-neutral-900 border-neutral-700 text-neutral-200" 
+                    className="bg-neutral-900 border-neutral-700 text-neutral-200 disabled:opacity-50" 
                   />
                 </FormItem>
                 <FormItem>
                   <FormLabel>Telefone</FormLabel>
                   <Input 
+                    disabled={isHoliday}
                     defaultValue={data.extendedProps?.pacienteTelefone ?? ""} 
                     placeholder="Digite o telefone" 
-                    className="bg-neutral-900 border-neutral-700 text-neutral-200" 
+                    className="bg-neutral-900 border-neutral-700 text-neutral-200 disabled:opacity-50" 
                   />
                 </FormItem>
               </>
@@ -193,14 +210,14 @@ export function CalendarEventGeneralTab({ data }: Props) {
               <FormItem className="md:col-span-2">
                 <FormLabel>Motivo do Bloqueio</FormLabel>
                 <Textarea 
+                  disabled={isHoliday}
                   defaultValue={data.extendedProps?.motivo ?? ""} 
                   placeholder="Digite o motivo do bloqueio"
-                  className="bg-neutral-900 border-neutral-700 text-neutral-200 min-h-[80px] resize-none" 
+                  className="bg-neutral-900 border-neutral-700 text-neutral-200 min-h-[80px] resize-none disabled:opacity-50" 
                 />
               </FormItem>
             )}
 
-            {/* Data e Hora Inicial */}
             <FormField
               control={form.control}
               name="start"
@@ -217,13 +234,14 @@ export function CalendarEventGeneralTab({ data }: Props) {
                       Data / Hora Inicial
                     </FormLabel>
                     <Popover>
-                      <PopoverTrigger asChild>
+                      <PopoverTrigger asChild disabled={isHoliday}>
                         <FormControl>
                           <Button
                             type="button"
                             variant="outline"
+                            disabled={isHoliday}
                             className={cn(
-                              "w-full justify-start rounded-xl border-neutral-800 bg-neutral-900 text-neutral-200 hover:bg-neutral-800 text-xs h-9",
+                              "w-full justify-start rounded-xl border-neutral-800 bg-neutral-900 text-neutral-200 hover:bg-neutral-800 text-xs h-9 disabled:opacity-50",
                               fieldState.error && "border-red-500 text-red-400",
                               !field.value && "text-neutral-500"
                             )}
@@ -317,7 +335,6 @@ export function CalendarEventGeneralTab({ data }: Props) {
               }}
             />
 
-            {/* Data e Hora Final */}
             <FormField
               control={form.control}
               name="end"
@@ -334,13 +351,14 @@ export function CalendarEventGeneralTab({ data }: Props) {
                       Data / Hora Final
                     </FormLabel>
                     <Popover>
-                      <PopoverTrigger asChild>
+                      <PopoverTrigger asChild disabled={isHoliday}>
                         <FormControl>
                           <Button
                             type="button"
                             variant="outline"
+                            disabled={isHoliday}
                             className={cn(
-                              "w-full justify-start rounded-xl border-neutral-800 bg-neutral-900 text-neutral-200 hover:bg-neutral-800 text-xs h-9",
+                              "w-full justify-start rounded-xl border-neutral-800 bg-neutral-900 text-neutral-200 hover:bg-neutral-800 text-xs h-9 disabled:opacity-50",
                               fieldState.error && "border-red-500 text-red-400",
                               !field.value && "text-neutral-500"
                             )}
@@ -438,6 +456,7 @@ export function CalendarEventGeneralTab({ data }: Props) {
 
         <Button
           type="submit"
+          disabled={isHoliday}
           className="
             w-full p-2 mt-6
             rounded-xl
@@ -448,6 +467,8 @@ export function CalendarEventGeneralTab({ data }: Props) {
             transition-all
             hover:bg-neutral-700
             active:scale-[0.98]
+            disabled:opacity-50
+            disabled:cursor-not-allowed
           "
         >
           <Save className="h-4 w-4" />
