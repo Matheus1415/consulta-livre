@@ -1,12 +1,12 @@
-import { toAppTimezone } from "@/config/timezone.config";
+import { APP_TIMEZONE, toAppTimezone } from "@/config/timezone.config";
 import { isWeekend, getHours, format } from "date-fns";
 import { NagerPublicHoliday } from "./nager-date.provider";
+import { formatInTimeZone } from "date-fns-tz";
 
 // Cache em memória simples por ano para não sobrecarregar a API pública
 const holidaysCache: Record<number, NagerPublicHoliday[]> = {};
 
 export const AppointmentValidationService = {
-  
   // Busca feriados da API do Nager.Date
   async fetchPublicHolidays(year: number): Promise<NagerPublicHoliday[]> {
     if (holidaysCache[year]) {
@@ -15,7 +15,7 @@ export const AppointmentValidationService = {
 
     try {
       const response = await fetch(
-        `https://date.nager.at/api/v3/PublicHolidays/${year}/BR`
+        `https://date.nager.at/api/v3/PublicHolidays/${year}/BR`,
       );
 
       if (!response.ok) return [];
@@ -44,17 +44,19 @@ export const AppointmentValidationService = {
     return isWeekend(zonedDate);
   },
 
-  // Verifica se o horário está fora do expediente comercial
+  // Verifica se o horário está fora do expediente comercial usando o fuso configurado
   isOutsideBusinessHours(date: Date): boolean {
-    const zonedDate = toAppTimezone(date);
-    const hours = getHours(zonedDate);
-    return hours < 8 || hours >= 18;
+    const hourString = formatInTimeZone(date, APP_TIMEZONE, "H");
+    const minuteString = formatInTimeZone(date, APP_TIMEZONE, "mm");
+    const hours = parseInt(hourString, 10);
+    const minutes = parseInt(minuteString, 10);
+    return hours < 8 || hours > 18 || (hours === 18 && minutes > 0);
   },
 
   // Suíte completa de validação
   async validate(
     start: Date,
-    end: Date
+    end: Date,
   ): Promise<{ isValid: boolean; error?: string }> {
     const zonedStart = toAppTimezone(start);
     const zonedEnd = toAppTimezone(end);

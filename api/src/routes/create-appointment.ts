@@ -2,7 +2,7 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { appointments } from "@/db/schema";
 import { db } from "@/db";
-import { and, eq, gt, gte, lt, lte } from "drizzle-orm";
+import { and, eq, gt, lt } from "drizzle-orm";
 import { AppointmentValidationService } from "@/services/appointmentValidation.service";
 
 export const createAppointment: FastifyPluginAsyncZod = async (app) => {
@@ -58,27 +58,9 @@ export const createAppointment: FastifyPluginAsyncZod = async (app) => {
       const startDate = new Date(start);
       const endDate = new Date(end);
 
-      // Validações de Regra de Negócio via Service
+      // Validações de Regra de Negócio via Service (Com AWAIT corrigido)
       if (calendar !== "Feriados") {
-        // Busca feriados no banco para a data selecionada
-        const dayStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0, 0);
-        const dayEnd = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 23, 59, 59, 999);
-
-        const dbHolidays = await db
-          .select({ start: appointments.start })
-          .from(appointments)
-          .where(
-            and(
-              eq(appointments.calendar, "Feriados"),
-              gte(appointments.start, dayStart),
-              lte(appointments.start, dayEnd),
-            ),
-          );
-
-        const holidayDates = dbHolidays.map((h) => new Date(h.start));
-
-        // Centraliza a validação (Fim de semana, Horário Comercial, Feriado e Cronologia)
-        const validation = AppointmentValidationService.validate(startDate, endDate, holidayDates);
+        const validation = await AppointmentValidationService.validate(startDate, endDate);
 
         if (!validation.isValid) {
           return reply.status(400).send({
