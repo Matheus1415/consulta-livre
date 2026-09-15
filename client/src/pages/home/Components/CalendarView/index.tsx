@@ -92,15 +92,43 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
       }
     };
 
-    const handleEventDrop = (info: EventDropArg) => {
+    const handleEventDrop = async (info: EventDropArg) => {
       const updatedEvent = info.event.toPlainObject() as CalendarEvent;
-      console.log("[CalendarView] Evento movido (Drop):", {
-        id: updatedEvent.id,
+
+      const startDate = info.event.start;
+      const endDate = info.event.end || startDate;
+
+      if (!startDate) return;
+
+      const payload = {
         title: updatedEvent.title,
-        newStart: info.event.startStr,
-        newEnd: info.event.endStr,
-        event: updatedEvent,
-      });
+        calendar: updatedEvent.extendedProps?.calendar ?? "Outros",
+        patientName: updatedEvent.extendedProps?.pacienteNome ?? null,
+        patientPhone: updatedEvent.extendedProps?.pacienteTelefone ?? null,
+        blockReason: updatedEvent.extendedProps?.motivo ?? null,
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+      };
+
+      try {
+        await appointmentEdit(updatedEvent.id, payload);
+
+        toast({
+          title: "Agendamento movido",
+          description: "A data do agendamento foi atualizada com sucesso.",
+        });
+      } catch (error: any) {
+        info.revert();
+
+        toast({
+          variant: "destructive",
+          title: "Erro ao mover agendamento",
+          description:
+            error?.response?.data?.message ||
+            error?.message ||
+            "Não foi possível mover o agendamento.",
+        });
+      }
     };
 
     const handleSaveEvent = async (updatedEvent: CalendarEvent) => {
@@ -126,7 +154,7 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
         setSelectedEvent(null);
       } catch (error: any) {
         toast({
-          variant: "destructive",
+          variant: "default",
           title: "Erro ao salvar",
           description:
             error?.response?.data?.message ||
@@ -160,7 +188,7 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
           events={events}
           eventClick={handleEventClick}
           eventDrop={handleEventDrop}
-          eventResize={() => {}}
+          eventResize={() => { }}
           dateClick={handleDateClick}
           datesSet={onDatesSet}
           dayMaxEvents={true}
