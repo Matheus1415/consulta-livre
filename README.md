@@ -4,6 +4,14 @@ Sistema de gestão de agenda para uma clínica, desenvolvido como teste técnico
 
 A aplicação permite visualizar agendamentos em calendário mensal, semanal e diário, criar consultas e bloqueios, editar eventos, consultar horários disponíveis e sincronizar feriados nacionais. O backend concentra as regras de negócio e o frontend oferece uma interface clara para operação da agenda.
 
+## Imagens do sistema
+
+<div align="center" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+  <img width="48%" alt="calendar" src="https://github.com/user-attachments/assets/27403bce-5ec8-4e95-9311-bf1b4d286d5e" />
+  <img width="48%" alt="add-appointment" src="https://github.com/user-attachments/assets/ed4b5d05-2554-45cd-bc52-62a60c582d4c" />
+  <img width="48%" alt="edit-appointment" src="https://github.com/user-attachments/assets/410addbb-ab61-4210-b109-dbeb8d985074" />
+</div>
+
 ## Funcionalidades
 
 - Calendário interativo com visualizações mensal, semanal e diária.
@@ -121,7 +129,6 @@ Acesse o endereço informado pelo Vite, normalmente `http://localhost:5173`.
 Com a API em execução:
 
 - [Documentação Scalar](http://localhost:3333/docs)
-- [OpenAPI JSON](http://localhost:3333/docs/json)
 
 ### Endpoints principais
 
@@ -168,7 +175,6 @@ curl -X POST http://localhost:3333/appointments \
 ```bash
 npm run dev          # desenvolvimento com reload
 npm run build        # compila TypeScript
-npm run start        # executa a build
 npm run db:migrate   # aplica migrações
 npm run db:generate  # gera migrações Drizzle
 npm run db:studio    # abre o Drizzle Studio
@@ -179,9 +185,6 @@ npm run db:seed      # recria dados de demonstração
 
 ```bash
 npm run dev          # servidor Vite
-npm run build        # build de produção
-npm run preview      # serve o build localmente
-npm run lint         # análise estática
 ```
 
 ## Autor
