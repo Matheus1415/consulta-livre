@@ -2,6 +2,7 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { appointments } from "@/db/schema";
 import { db } from "@/db";
+import { and, gt, lt } from "drizzle-orm";
 
 export const createAppointment: FastifyPluginAsyncZod = async (app) => {
   app.post(
@@ -21,7 +22,18 @@ export const createAppointment: FastifyPluginAsyncZod = async (app) => {
         }),
         response: {
           201: z.object({
-            id: z.string(),
+            status: z.string(),
+            message: z.string(),
+            data: z.object({
+              id: z.string(),
+            }),
+          }),
+          400: z.object({
+            status: z.string(),
+            message: z.string(),
+          }),
+          409: z.object({
+            status: z.string(),
             message: z.string(),
           }),
         },
@@ -29,6 +41,51 @@ export const createAppointment: FastifyPluginAsyncZod = async (app) => {
     },
     async (request, reply) => {
       const { title, calendar, patientName, patientPhone, blockReason, start, end } = request.body;
+
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+
+      // Validação de consistência básica
+      if (startDate >= endDate) {
+        return reply.status(400).send({
+          status: "error",
+          message: "A data inicial deve ser anterior à data final.",
+        });
+      }
+
+      // Validação de Horário Comercial (08:00 e 18:00)
+      const startHour = startDate.getHours();
+      const endHour = endDate.getHours();
+      const endMinutes = endDate.getMinutes();
+
+      const isStartValid = startHour >= 8 && startHour < 18;
+      const isEndValid = endHour < 18 || (endHour === 18 && endMinutes === 0);
+
+      if (!isStartValid || !isEndValid) {
+        return reply.status(400).send({
+          status: "error",
+          message: "Agendamentos só podem ser realizados entre 08:00 e 18:00.",
+        });
+      }
+
+      // Validação de Choque/Sobreposição de Horários
+      const conflictingAppointments = await db
+        .select({ id: appointments.id })
+        .from(appointments)
+        .where(
+          and(
+            lt(appointments.start, endDate),
+            gt(appointments.end, startDate)
+          )
+        )
+        .limit(1);
+
+      if (conflictingAppointments.length > 0) {
+        return reply.status(409).send({
+          status: "error",
+          message: "Já existe um agendamento cadastrado para este horário.",
+        });
+      }
 
       const result = await db
         .insert(appointments)
@@ -38,15 +95,18 @@ export const createAppointment: FastifyPluginAsyncZod = async (app) => {
           patientName: patientName ?? null,
           patientPhone: patientPhone ?? null,
           blockReason: blockReason ?? null,
-          start: new Date(start),
-          end: new Date(end),
+          start: startDate,
+          end: endDate,
         })
         .returning({ id: appointments.id });
 
       return reply.status(201).send({
-        id: result[0].id,
+        status: "success",
         message: "Agendamento criado com sucesso!",
+        data: {
+          id: result[0].id,
+        },
       });
-    },
+    }
   );
 };
