@@ -61,9 +61,18 @@ export const updateAppointment: FastifyPluginAsyncZod = async (app) => {
       const startDate = new Date(start);
       const endDate = new Date(end);
 
-      // Validações de Regra de Negócio via Service (Horário comercial, Fim de semana e Cronologia)
+      // Verificação explícita de Feriado na data informada
+      const isHoliday = await AppointmentValidationService.isPublicHoliday(startDate);
+      if (isHoliday) {
+        return reply.status(400).send({
+          status: "error",
+          message: "Não é possível editar ou mover o agendamento para este dia pois ele é um feriado.",
+        });
+      }
+
+      // Demais validações de Regra de Negócio (Horário comercial, Fim de semana e Cronologia)
       if (calendar !== "Feriados") {
-        const validation = AppointmentValidationService.validate(startDate, endDate);
+        const validation = await AppointmentValidationService.validate(startDate, endDate);
 
         if (!validation.isValid) {
           return reply.status(400).send({
@@ -73,7 +82,7 @@ export const updateAppointment: FastifyPluginAsyncZod = async (app) => {
         }
       }
 
-      // Validação de Choque de Horários no Banco de Dados
+      // 4. Validação de Choque de Horários no Banco de Dados
       const conflictStartParam = appointments.start.dataType === "string" ? start : startDate;
       const conflictEndParam = appointments.end.dataType === "string" ? end : endDate;
 
@@ -117,7 +126,7 @@ export const updateAppointment: FastifyPluginAsyncZod = async (app) => {
       return reply.status(200).send({
         status: "success",
         message: "Agendamento atualizado com sucesso!",
-        data: { id },
+        data: { id: String(id) },
       });
     }
   );
