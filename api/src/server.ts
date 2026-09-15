@@ -13,6 +13,7 @@ import { env } from "./env";
 import { openApiDocumentation } from "./docs/into.docs";
 import { createAppointment } from "./routes/create-appointment";
 import { getAppointments } from "./routes/get-appointments";
+import { updateAppointment } from "./routes/update-appointment";
 
 const app = Fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -35,6 +36,7 @@ app.register(scalarApiReference, {
 
 app.register(getAppointments);
 app.register(createAppointment);
+app.register(updateAppointment);
 
 app.listen({ port: env.PORT, host: "0.0.0.0" }).then(() => {
   console.log("HTTP server running on http://localhost:3333");
