@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { CalendarCategory, CalendarEvent } from "@/@types/calendar.types";
 
 import { CalendarTopBar } from "../CalendarTopBar";
@@ -6,11 +6,24 @@ import { CalendarView } from "../CalendarView";
 import FullCalendar from "@fullcalendar/react";
 import { categories } from "@/styles/colors/calendar";
 
-interface Props {
-  events: CalendarEvent[];
+export interface CurrentDateState {
+  month: number;
+  year: number;
 }
 
-export function CalendarLayout({ events }: Props) {
+interface Props {
+  events: CalendarEvent[];
+  currentDate: CurrentDateState;
+  setCurrentDate: Dispatch<SetStateAction<CurrentDateState>>;
+  onRefresh?: () => void;
+}
+
+export function CalendarLayout({
+  events,
+  currentDate,
+  setCurrentDate,
+  onRefresh,
+}: Props) {
   const calendarRef = useRef<FullCalendar | null>(null);
 
   const ALL_CATEGORIES: CalendarCategory[] = [
@@ -47,10 +60,32 @@ export function CalendarLayout({ events }: Props) {
     );
   };
 
+  // Disparado quando o usuário altera o mês/ano pelos Selects da TopBar
+  const handleDateChange = (newDate: CurrentDateState) => {
+    setCurrentDate(newDate);
+
+    if (calendarRef.current) {
+      const calendarApi = calendarRef.current.getApi();
+      const monthStr = String(newDate.month).padStart(2, "0");
+      calendarApi.gotoDate(`${newDate.year}-${monthStr}-01`);
+    }
+  };
+
+  // Disparado quando o usuário navega usando as setas do próprio FullCalendar (prev/next/today)
+  const handleDatesSet = (dateInfo: { view: { currentStart: Date } }) => {
+    const viewDate = dateInfo.view.currentStart;
+    const newMonth = viewDate.getMonth() + 1;
+    const newYear = viewDate.getFullYear();
+
+    setCurrentDate((prev) => {
+      if (prev.month === newMonth && prev.year === newYear) return prev;
+      return { month: newMonth, year: newYear };
+    });
+  };
+
   return (
     <div className="flex flex-col w-full py-6 px-6">
       <div className="w-full space-y-6">
-        
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold tracking-tight text-white">
             Agenda da Clínica
@@ -70,12 +105,15 @@ export function CalendarLayout({ events }: Props) {
             active: activeCategories.includes(cat.key),
             onToggle: () => toggleCategory(cat.key),
           }))}
+          currentDate={currentDate}
+          onDateChange={handleDateChange}
         />
 
         <div className="w-full overflow-hidden rounded-xl bg-neutral-900 border border-neutral-800 shadow-xl p-4">
           <CalendarView
             ref={calendarRef}
             events={filteredEvents}
+            onDatesSet={handleDatesSet}
           />
         </div>
       </div>

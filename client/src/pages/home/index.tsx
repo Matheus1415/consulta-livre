@@ -10,18 +10,23 @@ const CATEGORY_COLORS: Record<CalendarCategory, string> = {
   Outros: "#6b7280", 
 };
 
+export interface CurrentDateState {
+  month: number;
+  year: number;
+}
+
 export function Index() {
-  const [currentDate, setCurrentDate] = useState({
-    month: 9,
-    year: 2026,
+  const [currentDate, setCurrentDate] = useState<CurrentDateState>({
+    month: new Date().getMonth() + 1, // Mês atual (1-12)
+    year: new Date().getFullYear(),
   });
 
-  const { appointments, isLoading } = useAppointments({
+  const { appointments = [], isLoading, refetch } = useAppointments({
     month: currentDate.month,
     year: currentDate.year,
   });
 
-  const events: CalendarEvent[] = appointments.map((appointment) => ({
+  const events: CalendarEvent[] = (appointments ?? []).map((appointment) => ({
     id: appointment.id,
     title: appointment.title,
     start: appointment.start,
@@ -35,15 +40,22 @@ export function Index() {
     },
   }));
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <span className="text-muted-foreground animate-pulse">
-          Carregando agendamentos...
-        </span>
-      </div>
-    );
-  }
+  return (
+    <div className="relative">
+      <CalendarLayout
+        events={events}
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        onRefresh={refetch}
+      />
 
-  return <CalendarLayout events={events} />;
+      {isLoading && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-neutral-950/40">
+          <span className="text-muted-foreground animate-pulse">
+            Carregando agendamentos...
+          </span>
+        </div>
+      )}
+    </div>
+  );
 }

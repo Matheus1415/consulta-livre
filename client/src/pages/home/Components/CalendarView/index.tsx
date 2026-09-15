@@ -6,6 +6,7 @@ import interactionPlugin, { type DateClickArg } from "@fullcalendar/interaction"
 import ptBrLocale from "@fullcalendar/core/locales/pt-br";
 
 import type {
+  DatesSetArg,
   EventClickArg,
   EventDropArg,
   EventResizeDoneArg,
@@ -19,10 +20,11 @@ import { toast } from "@/components/ui/use-toast";
 
 interface Props {
   events: CalendarEvent[];
+  onDatesSet?: (dateInfo: DatesSetArg) => void;
 }
 
 export const CalendarView = forwardRef<FullCalendar, Props>(
-  ({ events }, calendarRef) => {
+  ({ events, onDatesSet }, calendarRef) => {
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
       null
     );
@@ -75,7 +77,7 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
         // Atualiza o evento e abre o modal
         setSelectedEvent(createdEvent);
         setSheetOpen(true);
-      } catch (error) { }
+      } catch (error) {}
     };
 
     const handleEventDrop = (info: EventDropArg) => {
@@ -124,7 +126,9 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
       } catch (error: any) {
         toast({
           title: "Erro ao salvar",
-          description: error?.message || "Não foi possível salvar as alterações do agendamento.",
+          description:
+            error?.message ||
+            "Não foi possível salvar as alterações do agendamento.",
         });
       }
     };
@@ -144,6 +148,7 @@ export const CalendarView = forwardRef<FullCalendar, Props>(
           eventDrop={handleEventDrop}
           eventResize={handleEventResize}
           dateClick={handleDateClick}
+          datesSet={onDatesSet}
           dayMaxEvents={true}
           eventDisplay="block"
           displayEventTime={false}
